@@ -201,6 +201,7 @@ targets:
     - tool_modelsim? (tb_top)
     - tool_vcs? (tb_top)
     - tool_verilator? (testharness)
+    - tool_icarus? (tb_top)
     hooks:
       pre_build:
         - tool_modelsim? (pre_build_uartdpi)
@@ -252,6 +253,9 @@ targets:
           - '-CFLAGS "-std=c++11 -Wall -g -fpermissive"'
           - '-LDFLAGS "-pthread -lutil -lelf"'
           - "-Wall"
+      icarus:
+        iverilog_options:
+          - -g2012
 
   sim_opt:
     <<: *default_target
@@ -358,3 +362,4 @@ targets:
         - report
         dc_script:
         - dc_script.tcl
+    icarus:
