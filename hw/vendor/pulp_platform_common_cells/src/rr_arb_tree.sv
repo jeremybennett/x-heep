@@ -112,8 +112,10 @@ module rr_arb_tree #(
   // pragma translate_off
   `ifndef VERILATOR
   `ifndef XSIM
+  `ifndef SV2V
   // Default SVA reset
   default disable iff (!rst_ni || flush_i);
+  `endif
   `endif
   `endif
   // pragma translate_on
