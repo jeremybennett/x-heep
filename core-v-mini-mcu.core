@@ -130,6 +130,12 @@ filesets:
     - tb/tb_top.sv
     file_type: systemVerilogSource
 
+  sim-yosys:
+    files:
+    - hw/asic/yosys/tc_sram.sv
+    - hw/asic/yosys/clk_gating.sv
+    file_type: systemVerilogSource
+
 parameters:
   PULP_XPULP:
     datatype: int
@@ -324,25 +330,6 @@ targets:
         part: xc7z020clg400-1
     toplevel: [xilinx_core_v_mini_mcu_wrapper]
 
-  sim_nexys_netlist:
-    filesets:
-    - netlist-fpga
-    - tb-rtl
-    - post_build_modelsim_scripts
-    toplevel: [tb_top_vopt]
-    hooks:
-      post_build: [post_build_modelsim_scripts]
-    parameters:
-    - PULP_XPULP=0
-    - FPGA_NETLIST=true
-    tools:
-      modelsim:
-        vlog_options:
-        - -override_timescale 1ns/1ps
-        - -suppress vlog-2583
-        - -suppress vlog-2577
-        - -pedanticerrors
-
   asic_synthesis:
     <<: *default_target
     default_tool: design_compiler
@@ -351,7 +338,9 @@ targets:
     - PULP_XPULP=0
     - SYNTHESIS=true
     filesets_append:
-    - ip-asic
+    - tool_design_compiler? (ip-asic)
+    - tool_icarus? (rtl-simulation)
+    - tool_icarus? (sim-yosys)
     parameters:
       - PRIM_DEFAULT_IMPL=prim_pkg::your_target_technology
     toplevel: [core_v_mini_mcu]

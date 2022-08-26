@@ -13,22 +13,24 @@
 #
 # The following tools are required:
 #  - sv2v: SystemVerilog-to-Verilog converter from github.com/zachjs/sv2v
-#  - Cadence Conformal
+#  - yosys
 #
 # Usage:
-#   ./lec_sv2v.sh |& tee lec.log
+#   ./sv2v.sh |& tee sv2v.log
 
 #-------------------------------------------------------------------------
 # use fusesoc to generate files and file list
 #-------------------------------------------------------------------------
 
-# copy all files to lec_out
-mkdir lec_out
+fusesoc --cores-root . run --no-export --target=asic_synthesis --tool=icarus \
+        --setup  openhwgroup.org:systems:core-v-mini-mcu 2>&1 | tee buildicarus.log
 
 
-# add the prim_assert.sv file as it is marked as include file, but sv2v needs to convert it
+cd build/openhwgroup.org_systems_core-v-mini-mcu_0/asic_synthesis-icarus
+
 cp openhwgroup.org_systems_core-v-mini-mcu_0.scr sv2v.scr
 
+# add the prim_assert.sv file as it is marked as include file, but sv2v needs to convert it
 echo ../../../hw/vendor/lowrisc_opentitan/hw/ip/prim/rtl/prim_assert.sv >> sv2v.scr
 
 # copy file list and remove incdir, RVFI define, and sim-file
@@ -38,79 +40,65 @@ egrep 'pkg' sv2v.scr | egrep -v 'define'  > flist_pkg_gold
 
 egrep 'incdir' sv2v.scr > flist_incdir_gold
 sed -i 's/\+incdir+//g' flist_incdir_gold
-sed -i ':a;N;$!ba;s/\n/ -I ..\//g' flist_incdir_gold
-sed -i '1s/^/-I ..\//' flist_incdir_gold
+sed -i ':a;N;$!ba;s/\n/ -I /g' flist_incdir_gold
+sed -i '1s/^/-I /' flist_incdir_gold
 
 
-lines=$(cat flist_gold)
-for line in $lines
-do
-  cp $line lec_out/
-done
-
-lines=$(cat flist_pkg_gold)
-for line in $lines
-do
-  cp $line lec_out/
-done
-
-# remove all hierarchical paths
-sed -i 's!.*/!!' flist_gold
-sed -i 's!.*/!!' flist_pkg_gold
-
-
-incdirs=$(cat flist_incdir_gold)
+sv_files=$(cat flist_gold)
 packages=$(cat flist_pkg_gold)
-
-# generate revised flist by replacing '.sv' by '.v' and removing packages
-sed 's/.sv/.v/' flist_gold | grep -v "_pkg.v" > flist_rev
+incdirs=$(cat flist_incdir_gold)
 
 #-------------------------------------------------------------------------
 # convert all RTL files to Verilog using sv2v
 #-------------------------------------------------------------------------
-printf "\nSV2V ERRORS:\n"
-cd lec_out
+
+printf "\nSV2V VERSION:\n"
+sv2v --version
 
 mkdir verilog
-for file in *.sv; do
-  module=`basename -s .sv $file`
-  echo "Converting " $file
-  #sv2v --define=SYNTHESIS --define=SV2V *_pkg.sv prim_assert.sv -I ../../../../hw/vendor/pulp_platform_common_cells/include/  -I ../../../../hw/vendor/openhwgroup_cv32e20/rtl/ $file > verilog/${module}.v
-  sv2v --define=SYNTHESIS --define=SV2V $packages $incdirs $file > verilog/${module}.v
-done
 
-# remove *pkg.v files (they are empty files and not needed)
+printf "\nSV2V ERRORS:\n"
+
+#-------------------------------------------------------------------------
+# we put everything in one file otherwise if we loop over each file,
+# the module name and the instance name are not consistent due to parameters
+#-------------------------------------------------------------------------
+sv2v --define=SYNTHESIS --define=SV2V $packages $incdirs $sv_files +RTS -N4 > combined.v
+
+# split files up
+modules=`cat combined.v | grep "^module" | sed -e "s/^module //" | sed -e "s/ (.*//"`
+echo "$modules" > modules.txt  # for debugging
+
+
+for module in $modules; do
+  sed -n "/^module $module /,/^endmodule/p" < combined.v > verilog/$module.v
+done
+rm combined.v
+
+# remove empty files (they do not have a module)
 cd verilog
-rm -f *_pkg.v prim_assert.v prim_generic_pad_wrapper.v prim_pad_wrapper.v
+find . -type f -print0 | xargs --null grep -Z -L 'module' > ../empty_files.log
+find . -type f -print0 | xargs --null grep -Z -L 'module' | xargs --null rm
+
+cd ../
+
+break
 
 [ -e yosys_read_verilog.tcl ] && rm yosys_read_verilog.tcl
-for i in $(ls *.v)
+for i in $(ls verilog)
 do
-  echo 'read -sv '$i >> yosys_read_verilog.tcl
+  echo 'read -sv ./verilog/'$i >> yosys_read_verilog.tcl
 done
 
-yosys -L yosys_log.log
-
-#[ -e file_list.txt ] && rm file_list.txt
-#for i in $(ls *.v)
-#do
-#  echo '    - '$(pwd)'/'$i >> file_list.txt
-#done
-
-#verilog_files=$(cat file_list.txt)
-#replacement_string="# add here the generated files"
-
-#[ -e x-heep-yosys.core ] && rm x-heep-yosys.core
-#touch x-heep-yosys.core
-#
-#while IFS= read -r line; do
-#  if [[ $line == *"$replacement_string"* ]];
-#  then
-#    echo "$verilog_files" >> x-heep-yosys.core
-#  else
-#    echo "$line" >> x-heep-yosys.core
-#  fi
-#done < ../../../../../x-heep-yosys.core.tpl
-
-
-cd ../../
+#-------------------------------------------------------------------------
+# run yosys
+#-------------------------------------------------------------------------
+printf "\n\nYosys:\n"
+yosys -L yosys_log.log -QTqp "
+  script yosys_read_verilog.tcl;
+  hierarchy -check -top core_v_mini_mcu;
+  proc; opt;
+  techmap; opt;
+  write_verilog yosys_elaborated.v;
+  write_json out.json;
+"
