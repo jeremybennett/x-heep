@@ -362,4 +362,4 @@ targets:
         - report
         dc_script:
         - dc_script.tcl
-    icarus:
+      icarus:

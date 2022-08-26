@@ -81,6 +81,36 @@ done
 
 # remove *pkg.v files (they are empty files and not needed)
 cd verilog
-rm -f *_pkg.v prim_assert.v
+rm -f *_pkg.v prim_assert.v prim_generic_pad_wrapper.v prim_pad_wrapper.v
+
+[ -e yosys_read_verilog.tcl ] && rm yosys_read_verilog.tcl
+for i in $(ls *.v)
+do
+  echo 'read -sv '$i >> yosys_read_verilog.tcl
+done
+
+yosys -L yosys_log.log
+
+#[ -e file_list.txt ] && rm file_list.txt
+#for i in $(ls *.v)
+#do
+#  echo '    - '$(pwd)'/'$i >> file_list.txt
+#done
+
+#verilog_files=$(cat file_list.txt)
+#replacement_string="# add here the generated files"
+
+#[ -e x-heep-yosys.core ] && rm x-heep-yosys.core
+#touch x-heep-yosys.core
+#
+#while IFS= read -r line; do
+#  if [[ $line == *"$replacement_string"* ]];
+#  then
+#    echo "$verilog_files" >> x-heep-yosys.core
+#  else
+#    echo "$line" >> x-heep-yosys.core
+#  fi
+#done < ../../../../../x-heep-yosys.core.tpl
+
 
 cd ../../
