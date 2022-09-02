@@ -4,6 +4,7 @@
 
 `verilator_config
 
-lint_off -rule UNUSED -file "*tb/testharness.sv" -match "*"
-lint_off -rule UNDRIVEN -file "*tb/testharness.sv" -match "Signal is not driven: 'jtag_tdo_o'*"
+lint_off -rule UNUSED -file "*tb/*.sv*" -match "*"
+lint_off -rule UNDRIVEN -file "*tb/*.sv*" -match "*"
 lint_off -rule SYNCASYNCNET -file "*tb/testharness.sv" -match "*"
+lint_off -rule WIDTH -file "*tb/*.sv*" -match "*"

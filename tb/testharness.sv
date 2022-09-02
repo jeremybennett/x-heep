@@ -28,11 +28,11 @@ module testharness #(
     inout  logic        exit_valid_o
 );
 
-  `include "tb_util.svh"
-
   import obi_pkg::*;
   import reg_pkg::*;
   import testharness_pkg::*;
+
+  `include "tb_util.svh"
 
   wire uart_rx;
   wire uart_tx;
