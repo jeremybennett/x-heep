@@ -165,8 +165,9 @@ module cdc_fifo_gray #(
     .async_data_i ( async_data ),
     .async_wptr_i ( async_wptr ),
     .async_rptr_o ( async_rptr )
-  );
 `endif
+  );
+
   // Check the invariants.
   // pragma translate_off
   `ifndef VERILATOR

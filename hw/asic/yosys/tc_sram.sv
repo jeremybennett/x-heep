@@ -1,1 +1,0 @@
-../../vendor/pulp_platform_tech_cells_generic/src/rtl/tc_sram.sv

@@ -69,10 +69,10 @@ sv2v --define=SYNTHESIS --define=SV2V $packages $incdirs $sv_files +RTS -N4 > co
 modules=`cat combined.v | grep "^module" | sed -e "s/^module //" | sed -e "s/ (.*//"`
 echo "$modules" > modules.txt  # for debugging
 
-
 for module in $modules; do
   sed -n "/^module $module /,/^endmodule/p" < combined.v > verilog/$module.v
 done
+
 rm combined.v
 
 # remove empty files (they do not have a module)
@@ -82,7 +82,6 @@ find . -type f -print0 | xargs --null grep -Z -L 'module' | xargs --null rm
 
 cd ../
 
-break
 
 [ -e yosys_read_verilog.tcl ] && rm yosys_read_verilog.tcl
 for i in $(ls verilog)
