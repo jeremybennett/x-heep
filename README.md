@@ -35,7 +35,7 @@ Minimal configuration of a core-v-mcu
 and create the Conda enviroment with python 3.8:
 
 ```bash
-ciao
+ciao ciao 
 conda update conda
 conda env create -f environment.yml
 ```
