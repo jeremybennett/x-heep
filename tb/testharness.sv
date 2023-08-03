@@ -15,19 +15,19 @@ module testharness #(
     parameter USE_EXTERNAL_DEVICE_EXAMPLE = 1,
     parameter CLK_FREQUENCY               = 'd100_000  //KHz
 ) (
-    inout wire clk_i,
-    inout wire rst_ni,
+    input wire clk_i,
+    input wire rst_ni,
 
     inout wire boot_select_i,
     inout wire execute_from_flash_i,
 
-    inout  wire         jtag_tck_i,
-    inout  wire         jtag_tms_i,
-    inout  wire         jtag_trst_ni,
-    inout  wire         jtag_tdi_i,
-    inout  wire         jtag_tdo_o,
+    input  wire         jtag_tck_i,
+    input  wire         jtag_tms_i,
+    input  wire         jtag_trst_ni,
+    input  wire         jtag_tdi_i,
+    output wire         jtag_tdo_o,
     output logic [31:0] exit_value_o,
-    inout  wire         exit_valid_o
+    output wire         exit_valid_o
 );
 
   `include "tb_util.svh"
@@ -66,6 +66,15 @@ module testharness #(
   wire [3:0] spi_sd_io;
   wire [1:0] spi_csb;
   wire spi_sck;
+
+  wire tri_clk_i = clk_i;
+  wire tri_rst_ni = rst_ni;
+  wire tri_boot_select_i = boot_select_i;
+  wire tri_execute_from_flash_i = execute_from_flash_i;
+  wire tri_exit_valid_o;
+
+  assign jtag_tdo_o   = (JTAG_DPI != 1) ? sim_jtag_tdo : 1'bz;
+  assign exit_valid_o = tri_exit_valid_o;
 
   logic [EXT_PERIPHERALS_PORT_SEL_WIDTH-1:0] ext_periph_select;
 
@@ -136,16 +145,16 @@ module testharness #(
       .X_EXT(X_EXT),
       .EXT_XBAR_NMASTER(HEEP_EXT_XBAR_NMASTER)
   ) x_heep_system_i (
-      .clk_i,
-      .rst_ni,
+      .clk_i(tri_clk_i),
+      .rst_ni(tri_rst_ni),
       .jtag_tck_i(sim_jtag_tck),
       .jtag_tms_i(sim_jtag_tms),
       .jtag_trst_ni(sim_jtag_trstn),
       .jtag_tdi_i(sim_jtag_tdi),
       .jtag_tdo_o(sim_jtag_tdo),
-      .boot_select_i,
-      .execute_from_flash_i,
-      .exit_valid_o,
+      .boot_select_i(tri_boot_select_i),
+      .execute_from_flash_i(tri_execute_from_flash_i),
+      .exit_valid_o(tri_exit_valid_o),
       .uart_rx_i(uart_rx),
       .uart_tx_o(uart_tx),
       .gpio_0_io(gpio[0]),
@@ -271,7 +280,7 @@ module testharness #(
   logic [core_v_mini_mcu_pkg::NUM_BANKS-1:0] delayed_tb_memory_subsystem_banks_powergate_switch_ack;
   logic [EXT_DOMAINS_RND-1:0] delayed_tb_external_subsystem_powergate_switch_ack;
 
-  always_ff @(negedge clk_i) begin
+  always_ff @(negedge tri_clk_i) begin
     tb_cpu_subsystem_powergate_switch_ack[0] <= x_heep_system_i.cpu_subsystem_powergate_switch;
     tb_peripheral_subsystem_powergate_switch_ack[0] <= x_heep_system_i.peripheral_subsystem_powergate_switch;
     tb_memory_subsystem_banks_powergate_switch_ack[0] <= x_heep_system_i.memory_subsystem_banks_powergate_switch;
@@ -309,10 +318,10 @@ module testharness #(
       .FREQ(CLK_FREQUENCY * 1000),  //Hz
       .NAME("uart0")
   ) i_uart0 (
-      .clk_i,
-      .rst_ni,
-      .tx_o(uart_rx),
-      .rx_i(uart_tx)
+      .clk_i (tri_clk_i),
+      .rst_ni(tri_rst_ni),
+      .tx_o  (uart_rx),
+      .rx_i  (uart_tx)
   );
 
   // jtag calls from dpi
@@ -320,10 +329,10 @@ module testharness #(
       .TICK_DELAY(1),
       .PORT      (4567)
   ) i_sim_jtag (
-      .clock(clk_i),
-      .reset(~rst_ni),
+      .clock(tri_clk_i),
+      .reset(~tri_rst_ni),
       .enable(sim_jtag_enable),
-      .init_done(rst_ni),
+      .init_done(tri_rst_ni),
       .jtag_TCK(sim_jtag_tck),
       .jtag_TMS(sim_jtag_tms),
       .jtag_TDI(sim_jtag_tdi),
